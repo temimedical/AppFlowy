@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:hotkey_manager/hotkey_manager.dart';
 
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/startup/tasks/app_window_size_manager.dart';
@@ -9,8 +12,6 @@ import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_setting.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
-import 'package:flutter/material.dart';
-import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:scaled_app/scaled_app.dart';
 
@@ -19,12 +20,31 @@ typedef KeyDownHandler = void Function(HotKey hotKey);
 ValueNotifier<int> switchToTheNextSpace = ValueNotifier(0);
 ValueNotifier<int> createNewPageNotifier = ValueNotifier(0);
 
+class HotKeyWithLogical {
+  final LogicalKeyboardKey logicalKey;
+  final KeyboardKey key;
+
+  const HotKeyWithLogical(this.logicalKey, this.key);
+}
+
 @visibleForTesting
-final zoomInKeyCodes = [KeyCode.equal, KeyCode.numpadAdd, KeyCode.add];
+final zoomInKeyCodes = [
+  HotKeyWithLogical(LogicalKeyboardKey.equal, LogicalKeyboardKey.equal),
+  HotKeyWithLogical(LogicalKeyboardKey.numpadAdd, LogicalKeyboardKey.numpadAdd),
+  HotKeyWithLogical(LogicalKeyboardKey.add, LogicalKeyboardKey.add),
+];
+
 @visibleForTesting
-final zoomOutKeyCodes = [KeyCode.minus, KeyCode.numpadSubtract];
+final zoomOutKeyCodes = [
+  HotKeyWithLogical(LogicalKeyboardKey.minus, LogicalKeyboardKey.minus),
+  HotKeyWithLogical(LogicalKeyboardKey.numpadSubtract, LogicalKeyboardKey.numpadSubtract),
+];
+
 @visibleForTesting
-final resetZoomKeyCodes = [KeyCode.digit0, KeyCode.numpad0];
+final resetZoomKeyCodes = [
+  HotKeyWithLogical(LogicalKeyboardKey.digit0, LogicalKeyboardKey.digit0),
+  HotKeyWithLogical(LogicalKeyboardKey.numpad0, LogicalKeyboardKey.numpad0),
+];
 
 // Use a global value to store the zoom level and update it in the hotkeys.
 @visibleForTesting
@@ -48,6 +68,8 @@ class HotKeyItem {
 
   void register() =>
       hotKeyManager.register(hotKey, keyDownHandler: keyDownHandler);
+      
+  void unregister() => hotKeyManager.unregister(hotKey);
 }
 
 class HomeHotKeys extends StatefulWidget {
@@ -66,13 +88,27 @@ class HomeHotKeys extends StatefulWidget {
 
 class _HomeHotKeysState extends State<HomeHotKeys> {
   final windowSizeManager = WindowSizeManager();
+  late final List<HotKeyItem> items;
 
-  late final items = [
+  @override
+  void initState() {
+    super.initState();
+    items = _createHotKeyItems();
+    _registerHotKeys();
+  }
+
+  @override
+  void dispose() {
+    _unregisterHotKeys();
+    super.dispose();
+  }
+
+  List<HotKeyItem> _createHotKeyItems() => [
     // Collapse sidebar menu (using slash)
     HotKeyItem(
       hotKey: HotKey(
-        KeyCode.backslash,
-        modifiers: [Platform.isMacOS ? KeyModifier.meta : KeyModifier.control],
+        key: PhysicalKeyboardKey.backslash,
+        modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
         scope: HotKeyScope.inapp,
       ),
       keyDownHandler: (_) => context
@@ -83,8 +119,8 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     // Collapse sidebar menu (using .)
     HotKeyItem(
       hotKey: HotKey(
-        KeyCode.period,
-        modifiers: [Platform.isMacOS ? KeyModifier.meta : KeyModifier.control],
+        key: PhysicalKeyboardKey.period,
+        modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
         scope: HotKeyScope.inapp,
       ),
       keyDownHandler: (_) => context
@@ -95,10 +131,10 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     // Toggle theme mode light/dark
     HotKeyItem(
       hotKey: HotKey(
-        KeyCode.keyL,
+        key: PhysicalKeyboardKey.keyL,
         modifiers: [
-          Platform.isMacOS ? KeyModifier.meta : KeyModifier.control,
-          KeyModifier.shift,
+          Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control,
+          HotKeyModifier.shift,
         ],
         scope: HotKeyScope.inapp,
       ),
@@ -109,8 +145,8 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     // Close current tab
     HotKeyItem(
       hotKey: HotKey(
-        KeyCode.keyW,
-        modifiers: [Platform.isMacOS ? KeyModifier.meta : KeyModifier.control],
+        key: PhysicalKeyboardKey.keyW,
+        modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
         scope: HotKeyScope.inapp,
       ),
       keyDownHandler: (_) =>
@@ -120,8 +156,8 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     // Go to previous tab
     HotKeyItem(
       hotKey: HotKey(
-        KeyCode.pageUp,
-        modifiers: [Platform.isMacOS ? KeyModifier.meta : KeyModifier.control],
+        key: PhysicalKeyboardKey.pageUp,
+        modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
         scope: HotKeyScope.inapp,
       ),
       keyDownHandler: (_) => _selectTab(context, -1),
@@ -130,8 +166,8 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     // Go to next tab
     HotKeyItem(
       hotKey: HotKey(
-        KeyCode.pageDown,
-        modifiers: [Platform.isMacOS ? KeyModifier.meta : KeyModifier.control],
+        key: PhysicalKeyboardKey.pageDown,
+        modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
         scope: HotKeyScope.inapp,
       ),
       keyDownHandler: (_) => _selectTab(context, 1),
@@ -140,7 +176,7 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     // Rename current view
     HotKeyItem(
       hotKey: HotKey(
-        KeyCode.f2,
+        key: PhysicalKeyboardKey.f2,
         scope: HotKeyScope.inapp,
       ),
       keyDownHandler: (_) =>
@@ -148,14 +184,11 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     ),
 
     // Scale up/down the app
-    // In some keyboards, the system returns equal as + keycode, while others may return add as + keycode, so add them both as zoom in key.
     ...zoomInKeyCodes.map(
       (keycode) => HotKeyItem(
         hotKey: HotKey(
-          keycode,
-          modifiers: [
-            Platform.isMacOS ? KeyModifier.meta : KeyModifier.control,
-          ],
+          key: keycode.key,
+          modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
           scope: HotKeyScope.inapp,
         ),
         keyDownHandler: (_) => _scaleWithStep(0.1),
@@ -165,10 +198,8 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     ...zoomOutKeyCodes.map(
       (keycode) => HotKeyItem(
         hotKey: HotKey(
-          keycode,
-          modifiers: [
-            Platform.isMacOS ? KeyModifier.meta : KeyModifier.control,
-          ],
+          key: keycode.key,
+          modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
           scope: HotKeyScope.inapp,
         ),
         keyDownHandler: (_) => _scaleWithStep(-0.1),
@@ -179,10 +210,8 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     ...resetZoomKeyCodes.map(
       (keycode) => HotKeyItem(
         hotKey: HotKey(
-          keycode,
-          modifiers: [
-            Platform.isMacOS ? KeyModifier.meta : KeyModifier.control,
-          ],
+          key: keycode.key,
+          modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
           scope: HotKeyScope.inapp,
         ),
         keyDownHandler: (_) => _scale(1),
@@ -192,8 +221,8 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     // Switch to the next space
     HotKeyItem(
       hotKey: HotKey(
-        KeyCode.keyO,
-        modifiers: [Platform.isMacOS ? KeyModifier.meta : KeyModifier.control],
+        key: PhysicalKeyboardKey.keyO,
+        modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
         scope: HotKeyScope.inapp,
       ),
       keyDownHandler: (_) => switchToTheNextSpace.value++,
@@ -202,8 +231,8 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
     // Create a new page
     HotKeyItem(
       hotKey: HotKey(
-        KeyCode.keyN,
-        modifiers: [Platform.isMacOS ? KeyModifier.meta : KeyModifier.control],
+        key: PhysicalKeyboardKey.keyN,
+        modifiers: [Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control],
         scope: HotKeyScope.inapp,
       ),
       keyDownHandler: (_) => createNewPageNotifier.value++,
@@ -214,23 +243,17 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _registerHotKeys(context);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _registerHotKeys(context);
-  }
-
-  @override
   Widget build(BuildContext context) => widget.child;
 
-  void _registerHotKeys(BuildContext context) {
+  void _registerHotKeys() {
     for (final element in items) {
       element.register();
+    }
+  }
+
+  void _unregisterHotKeys() {
+    for (final element in items) {
+      element.unregister();
     }
   }
 
@@ -253,9 +276,6 @@ class _HomeHotKeysState extends State<HomeHotKeys> {
 
   Future<void> _scale(double scaleFactor) async {
     if (FlowyRunner.currentMode == IntegrationMode.integrationTest) {
-      // The integration test will fail if we check the scale factor in the test.
-      // #0      ScaledWidgetsFlutterBinding.Eval ()
-      // #1      ScaledWidgetsFlutterBinding.instance (package:scaled_app/scaled_app.dart:66:62)
       appflowyScaleFactor = scaleFactor;
     } else {
       ScaledWidgetsFlutterBinding.instance.scaleFactor = (_) => scaleFactor;

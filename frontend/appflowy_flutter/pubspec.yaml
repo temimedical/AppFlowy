@@ -52,8 +52,8 @@ dependencies:
   envied: ^0.5.2
   equatable: ^2.0.5
   expandable: ^5.0.1
-  extended_text_field: ^15.0.0
-  extended_text_library: ^12.0.0
+  extended_text_field: ^12.2.0
+  extended_text_library: ^11.1.0
   file: ^7.0.0
   fixnum: ^1.1.0
   flex_color_picker: ^3.5.1
@@ -164,7 +164,9 @@ dev_dependencies:
 dependency_overrides:
   http: ^1.0.0
   device_info_plus: ^10.1.0
-
+  uuid: ^4.4.0
+  hotkey_manager: ^0.2.3
+  
   url_protocol:
     git:
       url: https://github.com/LucasXu0/flutter_url_protocol.git
@@ -187,13 +189,14 @@ dependency_overrides:
       ref: e44458d
       path: sheet
 
-  uuid: ^4.4.0
-
   flutter_cache_manager:
     git:
       url: https://github.com/LucasXu0/flutter_cache_manager.git
       commit: fbab857b1b1d209240a146d32f496379b9f62276
       path: flutter_cache_manager
+
+  extended_text_field: ^15.0.0
+  extended_text_library: ^12.0.0
 
 flutter:
   generate: true

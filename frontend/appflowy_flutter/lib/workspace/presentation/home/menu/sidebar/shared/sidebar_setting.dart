@@ -13,6 +13,7 @@ import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart'
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:universal_platform/universal_platform.dart';
@@ -22,24 +23,25 @@ final GlobalKey _settingsDialogKey = GlobalKey();
 HotKeyItem openSettingsHotKey(
   BuildContext context,
   UserProfilePB userProfile,
-) =>
-    HotKeyItem(
-      hotKey: HotKey(
-        KeyCode.comma,
-        scope: HotKeyScope.inapp,
-        modifiers: [
-          UniversalPlatform.isMacOS ? KeyModifier.meta : KeyModifier.control,
-        ],
-      ),
-      keyDownHandler: (_) {
-        if (_settingsDialogKey.currentContext == null) {
-          showSettingsDialog(context, userProfile);
-        } else {
-          Navigator.of(context, rootNavigator: true)
-              .popUntil((route) => route.isFirst);
-        }
-      },
-    );
+) {
+  return HotKeyItem(
+    hotKey: HotKey(
+      key: PhysicalKeyboardKey.comma,
+      modifiers: <HotKeyModifier>[
+        UniversalPlatform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control,
+      ],
+      scope: HotKeyScope.inapp,
+    ),
+    keyDownHandler: (_) {
+      if (_settingsDialogKey.currentContext == null) {
+        showSettingsDialog(context, userProfile);
+      } else {
+        Navigator.of(context, rootNavigator: true)
+            .popUntil((route) => route.isFirst);
+      }
+    },
+  );
+}
 
 class UserSettingButton extends StatefulWidget {
   const UserSettingButton({
@@ -116,7 +118,6 @@ void showSettingsDialog(
         userProfile,
         initPage: initPage,
         didLogout: () async {
-          // Pop the dialog using the dialog context
           Navigator.of(dialogContext).pop();
           await runAppFlowy();
         },
@@ -127,7 +128,6 @@ void showSettingsDialog(
           Log.warn("Can't pop dialog context");
         },
         restartApp: () async {
-          // Pop the dialog using the dialog context
           Navigator.of(dialogContext).pop();
           await runAppFlowy();
         },
